@@ -1,33 +1,25 @@
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
-<%@page import="com.library.User, com.library.Book, com.library.FavoriteDAO, com.library.BookDAO, java.util.*" %>
+<%@page import="com.library.VisitCounter, com.library.NewsDAO, com.library.News, java.util.*, java.util.Date, java.text.SimpleDateFormat" %>
 <%
-    Object userObj = session.getAttribute("user");
-    if (userObj == null) {
-        response.sendRedirect("index.jsp");
-        return;
-    }
+    // Увеличиваем счетчик при каждом посещении
+    VisitCounter.incrementVisitCount(application);
+    int visitCount = VisitCounter.getVisitCount(application);
     
-    User user = (User) userObj;
-    FavoriteDAO favoriteDAO = new FavoriteDAO(application);
-    BookDAO bookDAO = new BookDAO(application);
+    // Получаем текущую дату и время сервера
+    Date now = new Date();
+    SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+    String currentDateTime = dateFormat.format(now);
     
-    //получаем ID избранных книг
-    List<String> favoriteIds = favoriteDAO.getUserFavoriteIds(user.getUsername());
-    List<Book> favoriteBooks = new ArrayList<>();
-    
-    // Получаем книги по ID
-    for (String bookId : favoriteIds) {
-        Book book = bookDAO.getBook(bookId);
-        if (book != null) {
-            favoriteBooks.add(book);
-        }
-    }
+    // Создаем NewsDAO для загрузки новостей из файла
+    NewsDAO newsDAO = new NewsDAO(application);
+    List<News> allNews = newsDAO.getAllNews();
 %>
+
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Мои книги</title>
+    <title>Новости библиотеки</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,41 +34,86 @@
             color: white;
             padding: 20px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
-        .nav {
-            text-align: center;
+        .stats {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
             margin: 20px 0;
+            text-align: center;
+            border: 1px solid #ddd;
         }
-        button {
-            padding: 10px 20px;
+        .news-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .news-item {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .news-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .news-title {
+            color: #4CAF50;
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+        .news-date {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .news-text {
+            color: #333;
+            line-height: 1.5;
+        }
+        .news-author {
+            color: #888;
+            font-size: 12px;
+            font-style: italic;
+            margin-top: 10px;
+        }
+        .auth-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .auth-buttons button {
+            padding: 12px 25px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            margin: 5px;
+            font-size: 16px;
+            margin: 0 10px;
         }
-        .btn-primary { background: #007bff; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        
-        .book-item {
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 10px 0;
-            border-left: 4px solid #4CAF50;
+        .btn-login {
+            background: #4CAF50;
+            color: white;
         }
-        .book-title {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
+        .btn-register {
+            background: #2196F3;
+            color: white;
         }
-        .book-info {
+        .btn-login:hover {
+            background: #45a049;
+        }
+        .btn-register:hover {
+            background: #1976D2;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
             color: #666;
             font-size: 14px;
-            margin-bottom: 10px;
         }
-        .empty {
+        .no-news {
             text-align: center;
             padding: 40px;
             color: #666;
@@ -86,40 +123,44 @@
 </head>
 <body>
     <div class="header">
-        <h1>📚 Мои книги</h1>
-        <p>Избранные книги пользователя <%= user.getFullName() %></p>
+        <h1>📚 Библиотека "Читай-Город"</h1>
+        <p>Новости и события нашей библиотеки</p>
     </div>
     
-    <div class="nav">
-        <a href="profile.jsp"><button class="btn-secondary">← В кабинет</button></a>
-        <a href="catalog.jsp"><button class="btn-primary">📖 В каталог</button></a>
+    <!-- Статистика -->
+    <div class="stats">
+        <p><strong>Всего посещений:</strong> <%= visitCount %></p>
+        <p><strong>Текущая дата и время:</strong> <%= currentDateTime %></p>
+        <p><strong>Количество новостей:</strong> <%= allNews.size() %></p>
     </div>
-    
-    <% if (favoriteBooks.isEmpty()) { %>
-        <div class="empty">
-            <p>У вас пока нет избранных книг</p>
-            <p>Добавляйте книги в избранное из каталога</p>
+
+    <!-- Кнопки входа/регистрации -->
+    <div class="auth-buttons">
+        <!-- Кнопки входа/регистрации -->
+        <div class="auth-buttons">
+            <a href="index.jsp"><button class="btn-login">🔑 Войти в систему</button></a><a href="register.jsp"><button class="btn-register">📝 Зарегистрироваться</button></a>
         </div>
-    <% } else { %>
-        <h3>Книг в избранном: <%= favoriteBooks.size() %></h3>
+    </div>
+
+    <!-- Новостная лента -->
+    <div class="news-container">
+        <h2 style="text-align: center; color: #333; margin-bottom: 20px;">📰 Последние новости</h2>
         
-        <% for (Book book : favoriteBooks) { %>
-            <div class="book-item">
-                <div class="book-title"><%= book.getTitle() %></div>
-                <div class="book-info">
-                    Автор: <%= book.getAuthor() %> | 
-                    Жанр: <%= book.getGenre() %> | 
-                    Год: <%= book.getYear() %>
-                </div>
-                <div>
-                    <form action="favorite" method="post" style="display: inline;">
-                        <input type="hidden" name="action" value="remove">
-                        <input type="hidden" name="bookId" value="<%= book.getId() %>">
-                        <button type="submit" class="btn-danger">Удалить из избранного</button>
-                    </form>
-                </div>
+        <% if (allNews.isEmpty()) { %>
+            <div class="no-news">
+                <p>Новостей пока нет. Загляните позже!</p>
             </div>
-        <% } %>
-    <% } %>
+        <% } else { 
+            for (News newsItem : allNews) { 
+        %>
+            <div class="news-item">
+                <h3 class="news-title"><%= newsItem.getTitle() %></h3>
+                <div class="news-date">📅 <%= newsItem.getDate() %></div>
+                <p class="news-text"><%= newsItem.getContent() %></p>
+                <div class="news-author">Автор: <%= newsItem.getAuthor() %></div>
+            </div>
+        <% } 
+        } %>
+    </div>
 </body>
 </html>
